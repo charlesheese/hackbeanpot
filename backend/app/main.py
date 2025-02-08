@@ -1,3 +1,5 @@
+from backend.app.databse.database_service import create_user
+from backend.app.databse.models import User
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import carbon, location  # Import API routers
@@ -26,3 +28,10 @@ app.include_router(location.router, prefix="/location", tags=["Location Services
 @app.get("/", tags=["Health"])
 async def root():
     return {"message": "Carbon Tracker API is running!"}
+
+@app.post("/signup")
+async def signup(user: User):
+    user_data = await create_user(user)
+    return user_data
+
+
