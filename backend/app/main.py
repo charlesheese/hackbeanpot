@@ -2,7 +2,7 @@ from app.database.database_service import create_user
 from app.database.models import User
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import carbon, location  # Import API routers
+from app.api import carbon, location, user # Import API routers
 from app.config import settings
 
 app = FastAPI(
@@ -24,7 +24,7 @@ app.add_middleware(
 #app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(carbon.router, prefix="/carbon", tags=["Carbon Footprint"])
 app.include_router(location.router, prefix="/location", tags=["Location Services"])
-
+app.include_router(user.router, prefix="/user", tags=["User Management"]) 
 # Health check endpoint
 @app.get("/", tags=["Health"])
 async def root():

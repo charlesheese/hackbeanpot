@@ -1,33 +1,43 @@
 from fastapi import APIRouter, HTTPException
-from app.database.database_service import create_carbon_log, get_carbon_log_by_user
-from app.database.models import CarbonFootprint
+#app.database.database_service import save_carbon_footprint, get_carbon_history
+from app.services.openai_services import analyze_carbon_footprint
+from pydantic import BaseModel
 from typing import Dict, Any
 
 router = APIRouter()
 
+class CarbonSubmission(BaseModel):
+    user_id: str
+    travel: Dict[str, Any]
+    car_usage: Dict[str, Any]
+    public_transport: Dict[str, Any]
+    active_travel: Dict[str, Any]
+
 @router.post("/submit")
-async def submit_carbon_log(data: CarbonFootprint):
+async def submit_carbon_footprint(data: CarbonSubmission):
     """
-    Stores user's carbon footprint log in the database.
+    Processes user's carbon footprint and returns OpenAI insights.
     """
     try:
-        print("Received Data:", data.dict())  # ✅ Debugging: Print input data
-        log_response = await create_carbon_log(data)
-        print("Log Response:", log_response)
-        return log_response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        entry = data.dict()
 
-@router.get("/history")
-async def fetch_carbon_logs(user_id: str):
-    """
-    Fetches all past carbon logs for a user.
-    """
-    logs = await get_carbon_log_by_user(user_id)
-    
-    if not logs:
-        raise HTTPException(status_code=404, detail="No carbon logs found")
-    
-    return {"carbon_logs": logs}
+        # ✅ Call OpenAI for carbon analysis
+        carbon_score, recommendations = await analyze_carbon_footprint(entry)
+        entry["total_carbon_score"] = carbon_score
+        entry["recommendations"] = recommendations
+
+        # ✅ Save to database
+
+        return {
+            "message": "Carbon footprint submitted successfully",
+            "id": 1,
+            "carbon_score": carbon_score,
+            "recommendations": recommendations
+        }
+
+    except Exception as e:
+        print("❌ API Error:", str(e))  # ✅ Debugging
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 
