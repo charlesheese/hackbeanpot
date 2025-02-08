@@ -46,15 +46,26 @@ async def get_next_log_id():
     last_log = await carbon_collection.find_one({}, sort=[("log_id", -1)])
     return last_log["log_id"] + 1 if last_log else 1
 
+from bson import ObjectId
+from datetime import datetime
+
 async def create_carbon_log(carbon_log: CarbonFootprint):
-    """Create a new carbon footprint log entry."""
+    """Create a new carbon footprint log entry in MongoDB."""
     log_id = await get_next_log_id()
     
     log_data = carbon_log.dict()
-    log_data["log_id"] = log_id  # Assign autoincremented log ID
+    log_data["log_id"] = log_id  # Assign auto-incremented log ID
+    
+    print("🟢 Preparing to insert into MongoDB:", log_data)  # ✅ Debugging
 
-    result = await carbon_collection.insert_one(log_data)
-    return {"message": "Carbon log created", "log_id": str(result.inserted_id)}
+    try:
+        result = await carbon_collection.insert_one(log_data)
+        print("✅ MongoDB Inserted:", result.inserted_id)  # ✅ Debugging Success
+        return {"message": "Carbon log created", "log_id": str(result.inserted_id)}
+    except Exception as e:
+        print("❌ MongoDB Insert Error:", e)  # ✅ Debugging Error
+        raise e  # Rethrow the exception so we can see it in FastAPI logs
+
 
 async def get_carbon_log_by_user(user_id: str):
     """Retrieve all carbon footprint logs for a user."""
