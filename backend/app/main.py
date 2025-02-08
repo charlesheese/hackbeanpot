@@ -1,5 +1,5 @@
-from backend.app.databse.database_service import create_user
-from backend.app.databse.models import User
+from app.database.database_service import create_user
+from app.database.models import User
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import carbon, location  # Import API routers

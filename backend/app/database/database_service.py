@@ -1,8 +1,9 @@
-from app.database.db import db
-from app.database.models import User
+from app.database.connections import db
+from app.database.models import PyObjectId, User
 import bcrypt
-from db.py import users_collection
-
+from app.database.connections import users_collection
+from app.database.connections import carbon_collection
+from app.database.models import CarbonFootprint
 
 async def get_next_user_id():
     """Get the next user ID"""
@@ -39,3 +40,23 @@ async def get_user_carbon_emissions(user_id: int):
     """Fetch user's past carbon footprint emissions."""
     user = await users_collection.find_one({"user_id": user_id}, {"carbon_emissions": 1, "_id": 0})
     return user.get("carbon_emissions", []) if user else None
+
+async def get_next_log_id():
+    """Get the next log ID by finding the highest current ID and incrementing."""
+    last_log = await carbon_collection.find_one({}, sort=[("log_id", -1)])
+    return last_log["log_id"] + 1 if last_log else 1
+
+async def create_carbon_log(carbon_log: CarbonFootprint):
+    """Create a new carbon footprint log entry."""
+    log_id = await get_next_log_id()
+    
+    log_data = carbon_log.dict()
+    log_data["log_id"] = log_id  # Assign autoincremented log ID
+
+    result = await carbon_collection.insert_one(log_data)
+    return {"message": "Carbon log created", "log_id": str(result.inserted_id)}
+
+async def get_carbon_log_by_user(user_id: str):
+    """Retrieve all carbon footprint logs for a user."""
+    logs = await carbon_collection.find({"user_id": PyObjectId(user_id)}).to_list(100)
+    return logs
