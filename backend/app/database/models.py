@@ -1,18 +1,31 @@
 from pydantic import BaseModel, EmailStr
 from typing import Any, Dict, List, Optional
 from bson import ObjectId
+from pydantic import BaseModel
+from pydantic_core import core_schema
+from pydantic.json_schema import JsonSchemaValue
+from datetime import datetime
 
-# Helper for ObjectId
 class PyObjectId(str):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    """Custom Pydantic field for MongoDB ObjectId."""
 
     @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
+    def validate(cls, value, info):
+        """Ensures the value is a valid MongoDB ObjectId."""
+        if not ObjectId.is_valid(value):
             raise ValueError("Invalid ObjectId")
-        return str(v)
+        return str(value)
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        """Ensures compatibility with Pydantic v2 schema."""
+        return core_schema.str_schema()
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        """Returns JSON schema format."""
+        return JsonSchemaValue(type="string")
+
 
 # User Model
 class User(BaseModel):
@@ -30,7 +43,7 @@ class User(BaseModel):
 class CarbonFootprint(BaseModel):
     log_id: Optional[int] = None
     user_id: PyObjectId
-    date: str # formatted in yyyy-mm-dd
+    date: Optional[str] = str
     
     travel: Optional[Dict[str, Any]] = {
         "start_location": "",

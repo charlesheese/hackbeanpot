@@ -35,4 +35,5 @@ async def signup(user: User):
     user_data = await create_user(user)
     return user_data
 
+app.include_router(carbon.router, prefix="/carbon", tags=["Carbon Footprint"])  
 
