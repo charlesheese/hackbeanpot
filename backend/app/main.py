@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import carbon, location  # Import API routers
+from app.config import settings
 
 app = FastAPI(
     title="Carbon Tracker API",
