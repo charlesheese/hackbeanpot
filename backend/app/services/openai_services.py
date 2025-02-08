@@ -2,7 +2,7 @@ import openai
 import json
 from app.config import settings
 
-openai.api_key = openai.OpenAI(api_key=settings.OPENAI_API_KEY) # ✅ Load API key from .env
+openai.api_key = "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"
 
 async def analyze_carbon_footprint(data: dict):
     """
