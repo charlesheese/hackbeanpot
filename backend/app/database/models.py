@@ -35,7 +35,6 @@ class CarbonFootprint(BaseModel):
     travel: Optional[Dict[str, Any]] = {
         "start_location": "",
         "end_location": "",
-        "distance_miles": 0.0,
         "mode_of_transport": "",
         "eco_friendly_choice": "",
         "improvement_goal": "",
