@@ -10,6 +10,11 @@ async def get_next_user_id():
     last_user = await db.users.find_one({}, sort=[("user_id", -1)])
     return last_user["user_id"] + 1 if last_user else 1
 
+from app.database.connections import users_collection
+from app.database.models import User
+import bcrypt
+
+
 async def create_user(user: User):
     """Create a new user"""
     user_id = await get_next_user_id()  
@@ -19,10 +24,11 @@ async def create_user(user: User):
     user_data = user.dict()
     user_data["hashed_password"] = hashed_password
     user_data["user_id"] = user_id  
-    del user_data["password"]  
+    del user_data["password"]  # ✅ Ensure raw password is not stored
 
-    result = await db.users.insert_one(user_data)
+    result = await users_collection.insert_one(user_data)  # ✅ Use users_collection
     return {"message": "User created", "id": str(result.inserted_id), "user_id": user_id}
+
 
 async def get_user_by_email(email: str):
     """Fetch user details by email."""
@@ -55,16 +61,17 @@ async def create_carbon_log(carbon_log: CarbonFootprint):
     
     log_data = carbon_log.dict()
     log_data["log_id"] = log_id  # Assign auto-incremented log ID
-    
-    print("🟢 Preparing to insert into MongoDB:", log_data)  # ✅ Debugging
+
+    print("🟢 Preparing to insert into MongoDB:", log_data)  # Debugging
 
     try:
         result = await carbon_collection.insert_one(log_data)
-        print("✅ MongoDB Inserted:", result.inserted_id)  # ✅ Debugging Success
+        print("✅ MongoDB Inserted:", result.inserted_id)  # Debugging Success
         return {"message": "Carbon log created", "log_id": str(result.inserted_id)}
     except Exception as e:
-        print("❌ MongoDB Insert Error:", e)  # ✅ Debugging Error
-        raise e  # Rethrow the exception so we can see it in FastAPI logs
+        print("❌ MongoDB Insert Error:", e)  # Debugging Error
+        raise HTTPException(status_code=500, detail=f"MongoDB Insert Error: {str(e)}")
+
 
 
 async def get_carbon_log_by_user(user_id: str):

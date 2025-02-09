@@ -1,50 +1,55 @@
-from fastapi import APIRouter, HTTPException
-from database.carbon_crud import save_carbon_footprint, get_carbon_history
-from app.services.openai_service import analyze_carbon_footprint
-from pydantic import BaseModel
-from typing import Dict, Any
+import openai
+import json
+from app.config import settings
 
-router = APIRouter()
+openai.api_key = "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"
 
-class CarbonSubmission(BaseModel):
-    user_id: str
-    travel: Dict[str, Any]
-    car_usage: Dict[str, Any]
-    public_transport: Dict[str, Any]
-    active_travel: Dict[str, Any]
-
-@router.post("/submit")
-async def submit_carbon_footprint(data: CarbonSubmission):
+async def analyze_carbon_footprint(data: dict):
     """
-    Processes user's carbon footprint and returns OpenAI insights.
+    Sends user's carbon footprint data to OpenAI and returns structured insights.
     """
+    prompt = f"""
+    The user provided the following carbon footprint data:
+    - Travel: {data.get("travel", {})}
+    - Car Usage: {data.get("car_usage", {})}
+    - Public Transport: {data.get("public_transport", {})}
+    - Active Travel: {data.get("active_travel", {})}
+
+    Your task:
+    1. Estimate the user's carbon footprint in **kg CO2e**.
+    2. Suggest **two personalized recommendations** to reduce their footprint.
+
+    **Return ONLY this JSON format (NO extra text!):**
+    {{
+      "carbon_score": (numeric value),
+      "recommendations": ["Tip 1", "Tip 2"]
+    }}
+    """
+
     try:
-        entry = data.dict()
-        
-        # Call OpenAI to analyze data
-        entry["total_carbon_score"], entry["recommendations"] = await analyze_carbon_footprint(entry)
+        client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)  # ✅ Use new OpenAI client
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
 
-        # Save to database
-        doc_id = await save_carbon_footprint(entry)
+        raw_result = response.choices[0].message.content
+        print("🔍 OpenAI Raw Response:", raw_result)  # ✅ Debugging Output
 
-        return {
-            "message": "Carbon footprint submitted successfully",
-            "id": doc_id,
-            "carbon_score": entry["total_carbon_score"],
-            "recommendations": entry["recommendations"]
-        }
-    
+        # ✅ Strip unwanted text & enforce valid JSON
+        if "{" in raw_result and "}" in raw_result:
+            raw_result = raw_result[raw_result.index("{"): raw_result.rindex("}") + 1]
+
+        result = json.loads(raw_result)
+
+        return result.get("carbon_score", 0.0), result.get("recommendations", [])
+
+    except json.JSONDecodeError:
+        print("❌ JSON Parsing Error: OpenAI returned invalid JSON")
+        return 0.0, ["Invalid AI response", "Try again later"]
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print("❌ OpenAI API Error:", str(e))
+        return 0.0, ["Error processing your request.", "Please try again later."]
 
-@router.get("/history")
-async def fetch_carbon_history(user_id: str):
-    """
-    Fetches past carbon footprint submissions for a user.
-    """
-    records = await get_carbon_history(user_id)
-    
-    if not records:
-        raise HTTPException(status_code=404, detail="No history found")
-    
-    return {"history": records}
